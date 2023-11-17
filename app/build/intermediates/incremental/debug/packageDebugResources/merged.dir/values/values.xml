@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="app_name">Project9</string>
+    <string name="gcm_defaultSenderId" translatable="false">1039289313462</string>
+    <string name="google_api_key" translatable="false">AIzaSyBGxcDcn6CS2LemloG-qRlqn5JyNa8SGh4</string>
+    <string name="google_app_id" translatable="false">1:1039289313462:android:224cc7b2147973360d1e17</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyBGxcDcn6CS2LemloG-qRlqn5JyNa8SGh4</string>
+    <string name="google_storage_bucket" translatable="false">project9-a3270.appspot.com</string>
+    <string name="project_id" translatable="false">project9-a3270</string>
+    <style name="Base.Theme.Project9" parent="Theme.Material3.DayNight.NoActionBar">
+        
+        
+    </style>
+    <style name="Theme.Project9" parent="Base.Theme.Project9"/>
+</resources>
