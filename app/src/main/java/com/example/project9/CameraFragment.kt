@@ -1,23 +1,18 @@
 package com.example.project9
-import android.Manifest
-import android.content.pm.PackageManager
-import android.graphics.ImageFormat
-import android.graphics.Rect
-import android.graphics.YuvImage
-import android.media.Image
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.Toast
 import androidx.camera.view.PreviewView
-import com.example.project9.R
-import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -28,6 +23,7 @@ class CameraFragment : Fragment() {
     private lateinit var viewFinder: PreviewView
     private lateinit var camera: Camera
     private lateinit var imageCapture: ImageCapture
+    private lateinit var captureButton: Button
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -39,21 +35,14 @@ class CameraFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         viewFinder = view.findViewById(R.id.viewFinder)
+        captureButton = view.findViewById(R.id.captureButton)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        if (allPermissionsGranted()) {
-            startCamera()
-        } else {
-            ActivityCompat.requestPermissions(
-                requireActivity(), REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-            )
-        }
-    }
+        startCamera()
 
-    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
-        ContextCompat.checkSelfPermission(
-            requireContext(), it
-        ) == PackageManager.PERMISSION_GRANTED
+        captureButton.setOnClickListener {
+            takePhoto()
+        }
     }
 
     private fun startCamera() {
@@ -62,9 +51,7 @@ class CameraFragment : Fragment() {
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
-            val preview = Preview.Builder()
-                .build()
-                .also { it.setSurfaceProvider(viewFinder.surfaceProvider) }
+            val preview = Preview.Builder().build().also { it.setSurfaceProvider(viewFinder.surfaceProvider) }
 
             imageCapture = ImageCapture.Builder().build()
 
@@ -88,19 +75,25 @@ class CameraFragment : Fragment() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     val buffer = image.planes[0].buffer
                     val data = buffer.toByteArray()
-                    val yuvImage = YuvImage(data, ImageFormat.NV21, image.width, image.height, null)
-                    val out = ByteArrayOutputStream()
-                    yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
-                    val imageBytes = out.toByteArray()
+                    val rotationDegrees = image.imageInfo.rotationDegrees
+                    val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
+                    val rotatedBitmap = rotateBitmap(bitmap, rotationDegrees)
+                    val fileName = "captured_image_${System.currentTimeMillis()}.jpg"
 
-                    // TODO: Handle the captured image bytes (e.g., upload to Firebase)
+                    FirebaseUtils.uploadImage(rotatedBitmap, "images", fileName)
+                        .thenAccept { downloadUrl ->
+                            //NOPE
+                        }
+                        .exceptionally { exception ->
+                            Toast.makeText(requireContext(), "Upload failed: ${exception.message}", Toast.LENGTH_SHORT).show()
+                            null
+                        }
 
                     image.close()
                 }
 
                 override fun onError(exception: ImageCaptureException) {
                     super.onError(exception)
-                    Toast.makeText(requireContext(), "Photo capture failed: ${exception.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         )
@@ -113,13 +106,13 @@ class CameraFragment : Fragment() {
         return data
     }
 
+    private fun rotateBitmap(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
+        val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         cameraExecutor.shutdown()
-    }
-
-    companion object {
-        private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 }
